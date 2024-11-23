@@ -4,6 +4,7 @@ package s3
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"strings"
 
@@ -13,7 +14,9 @@ import (
 	"github.com/alist-org/alist/v3/internal/model"
 	"github.com/alist-org/alist/v3/internal/op"
 	"github.com/alist-org/alist/v3/internal/setting"
+	"github.com/alist-org/alist/v3/pkg/utils"
 	"github.com/alist-org/gofakes3"
+	log "github.com/sirupsen/logrus"
 )
 
 type Bucket struct {
@@ -62,49 +65,42 @@ func getDirEntries(path string) ([]model.Obj, error) {
 	return dirEntries, nil
 }
 
-// func getFileHashByte(node interface{}) []byte {
-// 	b, err := hex.DecodeString(getFileHash(node))
-// 	if err != nil {
-// 		return nil
-// 	}
-// 	return b
-// }
+func getFileHashByte(node model.Obj) []byte {
+	b, err := hex.DecodeString(getFileHash(node))
+	if err != nil {
+		return nil
+	}
+	return b
+}
 
-func getFileHash(node interface{}) string {
+func getFileHash(node model.Obj) string {
 	// var o fs.Object
 
-	// switch b := node.(type) {
-	// case vfs.Node:
-	// 	fsObj, ok := b.DirEntry().(fs.Object)
-	// 	if !ok {
-	// 		fs.Debugf("serve s3", "File uploading - reading hash from VFS cache")
-	// 		in, err := b.Open(os.O_RDONLY)
-	// 		if err != nil {
-	// 			return ""
-	// 		}
-	// 		defer func() {
-	// 			_ = in.Close()
-	// 		}()
-	// 		h, err := hash.NewMultiHasherTypes(hash.NewHashSet(hash.MD5))
-	// 		if err != nil {
-	// 			return ""
-	// 		}
-	// 		_, err = io.Copy(h, in)
-	// 		if err != nil {
-	// 			return ""
-	// 		}
-	// 		return h.Sums()[hash.MD5]
-	// 	}
-	// 	o = fsObj
-	// case fs.Object:
-	// 	o = b
-	// }
+	hash_data := node.GetHash()
+	var hash string
 
-	// hash, err := o.Hash(context.Background(), hash.MD5)
-	// if err != nil {
-	// 	return ""
-	// }
-	// return hash
+	// Try MD5 first
+	hash = hash_data.GetHash(utils.MD5)
+	if hash != "" {
+		log.Infof("Using MD5 hash: %s", hash)
+		return hash
+	}
+
+	// If MD5 is not available, try SHA1
+	hash = hash_data.GetHash(utils.SHA1)
+	if hash != "" {
+		log.Infof("Using sha1 hash: %s", hash)
+		return hash
+	}
+
+	// If SHA1 is not available, try SHA256
+	hash = hash_data.GetHash(utils.SHA256)
+	if hash != "" {
+		log.Infof("Using sha256 hash: %s", hash)
+		return hash
+	}
+
+	// If none of the hashes are available, return an empty string or handle accordingly
 	return ""
 }
 

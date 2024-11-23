@@ -6,12 +6,13 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"path"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/alist-org/alist/v3/internal/errs"
 	"github.com/alist-org/alist/v3/internal/fs"
@@ -117,7 +118,7 @@ func (b *s3Backend) HeadObject(ctx context.Context, bucketName, objectName strin
 	}
 
 	size := node.GetSize()
-	// hash := getFileHashByte(fobj)
+	hash := getFileHashByte(node)
 
 	meta := map[string]string{
 		"Last-Modified": node.ModTime().Format(timeFormat),
@@ -132,8 +133,8 @@ func (b *s3Backend) HeadObject(ctx context.Context, bucketName, objectName strin
 	}
 
 	return &gofakes3.Object{
-		Name: objectName,
-		// Hash:     hash,
+		Name:     objectName,
+		Hash:     hash,
 		Metadata: meta,
 		Size:     size,
 		Contents: noOpReadCloser{},
@@ -186,7 +187,7 @@ func (b *s3Backend) GetObject(ctx context.Context, bucketName, objectName string
 				URL:    link.URL,
 				Header: link.Header,
 			}
-			var converted, err = stream.GetRangeReadCloserFromLink(remoteFileSize, rangedRemoteLink)
+			converted, err := stream.GetRangeReadCloserFromLink(remoteFileSize, rangedRemoteLink)
 			if err != nil {
 				return nil, err
 			}
@@ -205,8 +206,8 @@ func (b *s3Backend) GetObject(ctx context.Context, bucketName, objectName string
 			if err != nil {
 				return nil, err
 			}
-			//remoteClosers.Add(remoteLink.MFile)
-			//keep reuse same MFile and close at last.
+			// remoteClosers.Add(remoteLink.MFile)
+			// keep reuse same MFile and close at last.
 			remoteClosers.Add(link.MFile)
 			return io.NopCloser(link.MFile), nil
 		}
@@ -237,11 +238,12 @@ func (b *s3Backend) GetObject(ctx context.Context, bucketName, objectName string
 			meta[k] = v
 		}
 	}
+	hash := getFileHashByte(node)
 
 	return &gofakes3.Object{
 		// Name: gofakes3.URLEncode(objectName),
-		Name: objectName,
-		// Hash:     "",
+		Name:     objectName,
+		Hash:     hash,
 		Metadata: meta,
 		Size:     size,
 		Range:    rnge,
@@ -251,7 +253,7 @@ func (b *s3Backend) GetObject(ctx context.Context, bucketName, objectName string
 
 // TouchObject creates or updates meta on specified object.
 func (b *s3Backend) TouchObject(ctx context.Context, fp string, meta map[string]string) (result gofakes3.PutObjectResult, err error) {
-	//TODO: implement
+	// TODO: implement
 	return result, gofakes3.ErrNotImplemented
 }
 
@@ -410,7 +412,7 @@ func (b *s3Backend) BucketExists(ctx context.Context, name string) (exists bool,
 // CopyObject copy specified object from srcKey to dstKey.
 func (b *s3Backend) CopyObject(ctx context.Context, srcBucket, srcKey, dstBucket, dstKey string, meta map[string]string) (result gofakes3.CopyObjectResult, err error) {
 	if srcBucket == dstBucket && srcKey == dstKey {
-		//TODO: update meta
+		// TODO: update meta
 		return result, nil
 	}
 

@@ -52,7 +52,7 @@ func (d *Crypt) Init(ctx context.Context) error {
 	}
 
 	isCryptExt := regexp.MustCompile(`^[.][A-Za-z0-9-_]{2,}$`).MatchString
-	if !isCryptExt(d.EncryptedSuffix) {
+	if isCryptExt(d.EncryptedSuffix) || d.EncryptedSuffix != "none" {
 		return fmt.Errorf("EncryptedSuffix is Illegal")
 	}
 	d.FileNameEncoding = utils.GetNoneEmpty(d.FileNameEncoding, "base64")
